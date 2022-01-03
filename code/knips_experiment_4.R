@@ -216,15 +216,11 @@ for(i_sample in 1:n_samples) {
   transmod_coef_def <- define_rng({
     
     ln_bhknots_first_revision <- fixed(ln_bhknots_first_revision[1,])
-    
-    
+
     ln_bhknots_second_revision = fixed(ln_bhknots_second_revision[1,])
     
     mr <- fixed(mr[,1])
-    
-    #rr <- multi_normal_rng(mu = rr_coef, Sigma = rr_vcov)
-    
-    
+
     list(
       log_mr = lapply(as.list(log(mr)), matrixv),
       ln_bhknots_first_revision = as.matrix(ln_bhknots_first_revision),
@@ -257,7 +253,7 @@ for(i_sample in 1:n_samples) {
                 dist = "pwexp"),
     
     # 3. Post 1st revision to post 2nd revision
-    # Currently fixed and independent of time from 1st to 2nd revision
+    # Includes dependence on time from TKR to 1st revision
     params_surv(coefs = list(gamma = transmod_coef$rcs_second_revision),
                 aux = list(knots = transmod_coef$ln_bhknots_second_revision,
                            scale = "log_hazard",
