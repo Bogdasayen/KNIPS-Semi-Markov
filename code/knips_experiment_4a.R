@@ -43,7 +43,7 @@ n_patients <- 10
 
 discount_rate <- 0.035
 
-# Not yet sure of best way to specify age - should it be a starting age and then match to a range?
+# To specify <55 use c(0, 55) and to specify 85+ use c(85, Inf)
 age_range <- c(55,64)
 starting_age <- ceiling(mean(age_range))
 final_age <- 100
@@ -119,12 +119,20 @@ tmat
 # Transition 1
 # From Post TKR to Post 1st revision
 
-# Using all cases analysis from NJR
-rcs_3knot_names <- c("cons", "rcs1", "rcs2", "rcs3")
-
 implant_name <- "Cem CR_Fix Mono"
 
-first_revision_filename <- paste0("data/", age_range[1], "-", age_range[2], "_", sample_gender, "_first_revision.xlsx")
+if(age_range[1] != 0 & !is.infinite(age_range[2])) {
+  first_revision_filename <- paste0("data/", age_range[1], "-", age_range[2], "_", sample_gender, "_first_revision.xlsx")  
+} 
+if(age_range[1] == 0) {
+  # Less than age_range[2]
+  first_revision_filename <- paste0("data/", "l", age_range[2], "_", sample_gender, "_first_revision.xlsx")  
+}
+if(is.infinite(age_range[2])) {
+  # Above age_range[1]
+  first_revision_filename <- paste0("data/", "a", age_range[1], "_", sample_gender, "_first_revision.xlsx")  
+}
+
 rcs_first_revsision_mean_raw <- as.data.frame(read_excel(first_revision_filename, sheet = "rcs_first_revision_mean"))
 ln_bhknots_first_revision_raw = as.data.frame(read_excel(first_revision_filename, sheet = "ln_bhknots_first_revision"))
 rownames(rcs_first_revsision_mean_raw) <- rownames(ln_bhknots_first_revision_raw ) <- rcs_first_revsision_mean_raw[, 1]
