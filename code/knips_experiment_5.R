@@ -391,6 +391,19 @@ setattr(disprog_combined, "absorbing", attributes_absorbing)
 ## Costs and utilities
 ############################################################
 
+# Rates of 3rd or higher revision
+# Inverse variance meta-analysis of logrates of 3rd to 8th revision from NJR
+other_rates_raw <- as.matrix(read_excel("data/KNIPS Main input data.xlsx", sheet = "other_rates"))
+rownames(other_rates_raw) <- other_rates_raw[, "parameter"]
+
+lograte_higher_revision_mean <-  as.numeric(other_rates_raw["lograte_higher_revision_mean", "value"])
+lograte_higher_revision_se <-  as.numeric(other_rates_raw["lograte_higher_revision_se", "value"])
+
+# Assumed not to depend on time, time to 2nd revision, or implant
+# Need annualised probabilities as only used for costs and utilities in "Post 2nd revision"
+probability_higher_revision <- 1 - exp(- exp(rnorm(n = n_samples,
+                                 mean = lograte_higher_revision_mean,
+                                 sd = lograte_higher_revision_se)))
 
 utilities_raw <- as.matrix(read_excel("data/KNIPS Main input data.xlsx", sheet = "utilities"))
 rownames(utilities_raw) <- utilities_raw[, "parameter"]
@@ -522,9 +535,9 @@ utility_tbl <- stateval_tbl(
 
 # Utilities in Post TKR are dependent on time (clock-forward as all start in Post TKR)
 for(time_start_ in 0:(n_time_intervals - 1)) {
-  utility_tbl[utility_tbl$state_id == 1 & utility_tbl$time_start == time_start_, "value"] <- rep(utility_post_tkr, n_strategies * n_patients) -# general utility
+  utility_tbl[utility_tbl$state_id == 1 & utility_tbl$time_start == time_start_, "value"] <- rep(utility_post_tkr, n_strategies * n_patients) +# general utility
     # Disutility times probability of revision during this time interval
-    + rep(revision_disutility, n_strategies * n_patients) *
+     rep(revision_disutility, n_strategies * n_patients) *
     rep(unlist(probability_1st_revision[probability_1st_revision$time_start == time_start_, "value"]), times = n_patients)
 }
 
@@ -534,16 +547,19 @@ for(time_start_ in 0:(n_time_intervals - 1)) {
 # Utilities in Post 1st revision are dependent on time 
 # Note that this is clock reset
 for(time_start_ in 0:(n_time_intervals - 1)) {
-  utility_tbl[utility_tbl$state_id == 2 & utility_tbl$time_start == time_start_, "value"] <- rep(utility_post_1st_rev, n_strategies * n_patients) -# general utility
+  utility_tbl[utility_tbl$state_id == 2 & utility_tbl$time_start == time_start_, "value"] <- rep(utility_post_1st_rev, n_strategies * n_patients) +# general utility
     # Disutility times probability of revision during this time intervals
     rep(revision_disutility, n_strategies * n_patients) * 
     probability_2nd_revision[probability_2nd_revision$time_start == time_start_, "value"]
 }
 
-# Utility post 2nd revision the same for all strategies
-# Need to change so time dependent
-# and dependent on probabilities of 3rd or higher revision
-utility_tbl[utility_tbl$state_id == 3, "value"] <- rep(utility_post_2nd_rev, each = n_strategies * n_patients * n_time_intervals)
+# Utility post 2nd revision 
+# Don't depend on time, time to second revision, or strategy
+# The subtraction may not be needed if utility_post_2nd_rev already includes consequence of higher revisions
+utility_tbl[utility_tbl$state_id == 3, "value"] <- 
+  rep(utility_post_2nd_rev + probability_higher_revision * revision_disutility, 
+      each = n_strategies * n_patients * n_time_intervals) 
+  
 
 
 # Check that all strategies currently have the same utility in Post TKR
@@ -620,11 +636,8 @@ for(time_start_ in 0:(n_time_intervals - 1)) {
 }
 
 # Cost post 2nd revision the same for all strategies
-# Need to change so time dependent
-# and dependent on probabilities of 3rd or higher revision
-medcost_tbl[medcost_tbl$state_id == 3, "value"] <- rep(revision_cost, each = n_samples * n_strategies * n_patients * n_time_intervals) * 
-  # Using mean probability of 2nd revision for now but this needs to be updated
-  mean(unlist(lapply(probability_2nd_revision[, "value"], as.numeric)))
+# It is revision cost times probability of higher revision
+medcost_tbl[medcost_tbl$state_id == 3, "value"] <- rep(revision_cost * probability_higher_revision, n_strategies * n_patients * n_time_intervals) 
 
 
 ############################################################
