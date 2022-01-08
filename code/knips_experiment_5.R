@@ -154,8 +154,8 @@ for(implant_name in implant_names) {
                                                        par_names = names(rcs_first_revision_mean))
   
   
-  rcs_first_revision[[implant_name]] <- mvrnorm(n_samples, mu = rcs_first_revision_mean,
-                                Sigma = rcs_first_revision_covariance)
+  rcs_first_revision[[implant_name]] <- as.data.frame(mvrnorm(n_samples, mu = rcs_first_revision_mean,
+                                Sigma = rcs_first_revision_covariance))
   
   # Ensure it is a matrix
   if(n_samples == 1) {
@@ -236,19 +236,18 @@ for(implant_name in implant_names) {
   
   # Simulate one at a time
   n_samples_temp <- 1
+  # Simple function to convert vector to matrix with columns named constant ('cons')
+  matrixv <- function(v, n = NULL){
+    if (length(v) == 1) v <- rep(v, n_samples_temp) 
+    m <- matrix(v)
+    colnames(m) <- "cons"
+    return(m)
+  }
   
   for(i_sample in 1:n_samples) {
     #print(paste0("Sample ", i_sample))
     
     # Define the transition rate models
-    
-    # Simple function to convert vector to matrix with columns named constant ('cons')
-    matrixv <- function(v, n = NULL){
-      if (length(v) == 1) v <- rep(v, n_samples_temp) 
-      m <- matrix(v)
-      colnames(m) <- "cons"
-      return(m)
-    }
     
     # Function to generate random samples of underlying model parameters
     # Create a list of randomly sampled survival models for transitions
@@ -426,20 +425,25 @@ probability_2nd_revision <- data.table(strategy_id = rep(strategies$strategy_id,
                                        time_start = rep(0:(n_time_intervals - 1), times = (n_strategies * n_patients * n_samples)),
                                        value = rep(0, times = n_strategies * n_patients * n_samples * n_time_intervals))
 
+# For efficiency, create a single matrix with spline parameters
+rcs_first_revision_temp <- rbindlist(rcs_first_revision)
+# And a matrix with one set of knots for each sample
+ln_bhknots_first_revision_temp <- rbindlist(lapply(ln_bhknots_first_revision, as.data.frame))
+ln_bhknots_first_revision_temp <- ln_bhknots_first_revision_temp[rep(1:12, each = n_samples), ]
+
 # Intervals are 1 year if time_horizon is equal to n_time_intervals
 for(time_start_ in 0:(n_time_intervals - 1)) {
-  # Currently the same for all strategies but will eventually depend on them
-  # by changing the rcs_first_revision and ln_bhknots_first_revision
+  # Varies by strategy and sample
   probability_1st_revision[probability_1st_revision$time_start == time_start_, "value"] <- 
-    rep(exp(-Hsurvspline(
+    exp(-Hsurvspline(
       x = time_start_,
-      gamma = rcs_first_revision[[implant_name]],
-      knots = ln_bhknots_first_revision[[implant_name]])) - 
+      gamma = as.matrix(rcs_first_revision_temp),
+      knots = as.matrix(ln_bhknots_first_revision_temp))) - 
         exp(-Hsurvspline(
           x = time_start_ + time_horizon/n_time_intervals,
-          gamma = rcs_first_revision[[implant_name]],
-          knots = ln_bhknots_first_revision[[implant_name]]
-        )), n_strategies)
+          gamma = as.matrix(rcs_first_revision_temp),
+          knots = as.matrix(ln_bhknots_first_revision_temp)
+        ))
 }
 
 # Depends on patient, strategy and sample
@@ -466,34 +470,39 @@ for(i in 1:dim(disprog_temp)[1]) {
 
 # Probabilities of 2nd revision in Post 1st revision state
 # Intervals are 1 year if time_horizon equals n_time_horizon
+
+# Spline parameters and the covariate effect are separated for Hsurvspline
+gamma_temp <- rcs_second_revision[, -2]
+beta_temp <- rcs_second_revision[, 2]
+
+# Create duplicates for each patient and strategy
+# These only vary by sample
+gamma_temp <- gamma_temp[rep(c(1:n_samples), n_patients * n_strategies), ]
+beta_temp <- rep(beta_temp, n_patients * n_strategies)
+
 for(time_start_ in 0:(n_time_intervals - 1)) {
   print(paste0("Time interval ", time_start_, "/", n_time_intervals))
   
-  gamma_temp <- rcs_second_revision[, -2]
-  beta_temp <- rcs_second_revision[, 2]
-  
-  # Create duplicates for each patient and strategy
-  # These only vary by sample
-  gamma_temp <- gamma_temp[rep(c(1:n_samples), n_patients * n_strategies), ]
-  beta_temp <- rep(beta_temp, n_patients * n_strategies)
-  
-  
+  # Hsurvspline expects x and X to vectors of times and covariate values, respectively
+  # gamma is a matrix with one row for each sample
+  # beta is a vector with on element for each sample
+  # In code below the x and X are fixed and effect*covariate is calculated before passing to Hsurvspline
+  # Tested element by element to ensure gives correct answer
   probability_2nd_revision[probability_2nd_revision$time_start == time_start_, "value"] <- 
     exp(-Hsurvspline(
       x = time_start_,
       knots = ln_bhknots_second_revision,
       gamma = gamma_temp,
-      beta = beta_temp,
-      X = yrs_to_1st_rev_temp$time_stop)) - 
+      beta = beta_temp * yrs_to_1st_rev_temp$time_stop,
+      X = 1)) - 
     exp(-Hsurvspline(
       x = time_start_ + time_horizon/n_time_intervals,
       knots = ln_bhknots_second_revision,
       gamma = gamma_temp,
-      beta = beta_temp, 
-      X = yrs_to_1st_rev_temp$time_stop)) 
+      beta = beta_temp * yrs_to_1st_rev_temp$time_stop, 
+      X = 1)) 
   
 } # End loop over times
-
 
 
 
@@ -527,7 +536,7 @@ for(time_start_ in 0:(n_time_intervals - 1)) {
 for(time_start_ in 0:(n_time_intervals - 1)) {
   utility_tbl[utility_tbl$state_id == 2 & utility_tbl$time_start == time_start_, "value"] <- rep(utility_post_1st_rev, n_strategies * n_patients) -# general utility
     # Disutility times probability of revision during this time intervals
-    + rep(revision_disutility, n_strategies * n_patients) * 
+    rep(revision_disutility, n_strategies * n_patients) * 
     probability_2nd_revision[probability_2nd_revision$time_start == time_start_, "value"]
 }
 
