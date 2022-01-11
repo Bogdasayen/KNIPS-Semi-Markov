@@ -35,8 +35,11 @@ library(readxl)
 # Load utility functions
 source("code/knips_utils_1.R")
 
+# Data Directory - needs to be separate for confidentiality reasons
+data_directory <- "C:/Users/thomh/OneDrive/Documents/Bristol/KNIPS/code/KNIPS-Semi-Markov-Data"
+
 # Read in lifetables (from UK used in Coeliac screening - need to update)
-lifetables <- read_excel("data/KNIPS Main input data.xlsx", sheet = "uk_lifetables")
+lifetables <- read_excel(paste0(data_directory, "/KNIPS Main input data.xlsx"), sheet = "uk_lifetables")
 
 ############################################################
 ## Model specification
@@ -58,7 +61,7 @@ sample_gender <- "Female"
 #sys.time <-system.time({
 
 # Implant details
-implant_costs_raw <- as.data.frame(read_excel("data/KNIPS Main input data.xlsx", sheet = "implant_costs"))
+implant_costs_raw <- as.data.frame(read_excel(paste0(data_directory, "/KNIPS Main input data.xlsx"), sheet = "implant_costs"))
 n_implants <- dim(implant_costs_raw)[1]
 implant_names <- implant_costs_raw$implant_name
   
@@ -124,15 +127,15 @@ tmat
 # From Post TKR to Post 1st revision
 
 if(age_range[1] != 0 & !is.infinite(age_range[2])) {
-  first_revision_filename <- paste0("data/", age_range[1], "-", age_range[2], "_", sample_gender, "_first_revision.xlsx")  
+  first_revision_filename <- paste0("/", age_range[1], "-", age_range[2], "_", sample_gender, "_first_revision.xlsx")  
 } 
 if(age_range[1] == 0) {
   # Less than age_range[2]
-  first_revision_filename <- paste0("data/", "l", age_range[2], "_", sample_gender, "_first_revision.xlsx")  
+  first_revision_filename <- paste0("/", "l", age_range[2], "_", sample_gender, "_first_revision.xlsx")  
 }
 if(is.infinite(age_range[2])) {
   # Above age_range[1]
-  first_revision_filename <- paste0("data/", "a", age_range[1], "_", sample_gender, "_first_revision.xlsx")  
+  first_revision_filename <- paste0("/", "a", age_range[1], "_", sample_gender, "_first_revision.xlsx")  
 }
 
 # List of sampled spline parameters and (fixed) knot locations, one for each implant
@@ -141,8 +144,8 @@ ln_bhknots_first_revision <- list()
 
 # For test try implant_name <- "Cem CR_Fix Mono"
 for(implant_name in implant_names) {
-  rcs_first_revsision_mean_raw <- as.data.frame(read_excel(first_revision_filename, sheet = "rcs_first_revision_mean"))
-  ln_bhknots_first_revision_raw = as.data.frame(read_excel(first_revision_filename, sheet = "ln_bhknots_first_revision"))
+  rcs_first_revsision_mean_raw <- as.data.frame(read_excel(paste0(data_directory,first_revision_filename), sheet = "rcs_first_revision_mean"))
+  ln_bhknots_first_revision_raw = as.data.frame(read_excel(paste0(data_directory,first_revision_filename), sheet = "ln_bhknots_first_revision"))
   rownames(rcs_first_revsision_mean_raw) <- rownames(ln_bhknots_first_revision_raw ) <- rcs_first_revsision_mean_raw[, 1]
   
   rcs_first_revision_mean <- as.matrix(rcs_first_revsision_mean_raw[implant_name, -1])
@@ -179,9 +182,9 @@ mr_times <- c(0:time_horizon)
 
 # NJR Spline model with 3 knots from "Re-revisions for main analysis_corrected.docx"
 # Parameters
-rcs_second_revision_mean <- as.matrix(read_excel("data/KNIPS Main input data.xlsx", sheet = "rcs_second_revision_mean"))
+rcs_second_revision_mean <- as.matrix(read_excel(paste0(data_directory,"/KNIPS Main input data.xlsx"), sheet = "rcs_second_revision_mean"))
 # Knots
-ln_bhknots_second_revision = as.matrix(read_excel("data/KNIPS Main input data.xlsx", sheet = "ln_bhknots_second_revision"))
+ln_bhknots_second_revision = as.matrix(read_excel(paste0(data_directory,"/KNIPS Main input data.xlsx"), sheet = "ln_bhknots_second_revision"))
 
 # This is the covariance matrix provided by Linda from NJR in log_2_1
 rcs_second_names <- colnames(rcs_second_revision_mean)
@@ -393,7 +396,7 @@ setattr(disprog_combined, "absorbing", attributes_absorbing)
 
 # Rates of 3rd or higher revision
 # Inverse variance meta-analysis of logrates of 3rd to 8th revision from NJR
-other_rates_raw <- as.matrix(read_excel("data/KNIPS Main input data.xlsx", sheet = "other_rates"))
+other_rates_raw <- as.matrix(read_excel(paste0(data_directory, "/KNIPS Main input data.xlsx"), sheet = "other_rates"))
 rownames(other_rates_raw) <- other_rates_raw[, "parameter"]
 
 lograte_higher_revision_mean <-  as.numeric(other_rates_raw["lograte_higher_revision_mean", "value"])
@@ -405,7 +408,7 @@ probability_higher_revision <- 1 - exp(- exp(rnorm(n = n_samples,
                                  mean = lograte_higher_revision_mean,
                                  sd = lograte_higher_revision_se)))
 
-utilities_raw <- as.matrix(read_excel("data/KNIPS Main input data.xlsx", sheet = "utilities"))
+utilities_raw <- as.matrix(read_excel(paste0(data_directory,"/KNIPS Main input data.xlsx"), sheet = "utilities"))
 rownames(utilities_raw) <- utilities_raw[, "parameter"]
 
 revision_disutility_mean <- as.numeric(utilities_raw["revision_disutility_mean", "value"])
@@ -582,7 +585,7 @@ for(implant_name in implant_names) {
 }
 
 # Load other costs
-other_costs_raw <- as.data.frame(read_excel("data/KNIPS Main input data.xlsx", sheet = "other_costs"))
+other_costs_raw <- as.data.frame(read_excel(paste0(data_directory,"/KNIPS Main input data.xlsx"), sheet = "other_costs"))
 # Cost of primary TKR surgery
 tkr_surgery_cost <- other_costs_raw$value[other_costs_raw$parameter == "tkr_surgery_cost"]
 # Cost of revision surgery
