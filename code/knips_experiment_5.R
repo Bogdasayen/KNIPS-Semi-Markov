@@ -36,6 +36,7 @@ library(readxl)
 source("code/knips_utils_1.R")
 
 # Data Directory - needs to be separate for confidentiality reasons
+# Set to wherever the data are stored on your computer
 data_directory <- "C:/Users/thomh/OneDrive/Documents/Bristol/KNIPS/code/KNIPS-Semi-Markov-Data"
 
 # Read in lifetables (from UK used in Coeliac screening - need to update)
