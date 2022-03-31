@@ -28,6 +28,7 @@ library(flexsurv)
 library(ggplot2)
 library(MASS)
 library(readxl)
+library(BCEA)
 
 
 
@@ -153,7 +154,7 @@ for(implant_name in implant_names) {
   ln_bhknots_first_revision[[implant_name]] <- as.matrix(ln_bhknots_first_revision_raw[implant_name, -1])
   
   # This is the covariance matrix provided by Linda from NJR in log_2_1
-  rcs_first_revision_covariance <- read_rcs_covariance(filename = first_revision_filename,
+  rcs_first_revision_covariance <- read_rcs_covariance(filename = paste0(data_directory,first_revision_filename),
                                                        sheetname = paste0(implant_name, "_cov"),
                                                        par_names = names(rcs_first_revision_mean))
   
@@ -189,7 +190,7 @@ ln_bhknots_second_revision = as.matrix(read_excel(paste0(data_directory,"/KNIPS 
 
 # This is the covariance matrix provided by Linda from NJR in log_2_1
 rcs_second_names <- colnames(rcs_second_revision_mean)
-rcs_second_revision_covariance <- read_rcs_covariance(filename = "data/KNIPS Main input data.xlsx",
+rcs_second_revision_covariance <- read_rcs_covariance(filename = paste0(data_directory,"/KNIPS Main input data.xlsx"),
                                                       sheetname = "second_revision_covariance",
                                                      par_names = rcs_second_names)
 
@@ -231,6 +232,7 @@ disprog_combined_implant <- list()
 stateprobs_combined_implant <- list()
 
 # To test try implant_name <- "Cem CR_Fix Mono"
+system.time({
 for(implant_name in implant_names) {
   print(paste0("Implant ", which(implant_names == implant_name), "/", length(implant_names)))
   # Create a list of disease progression results for this implant
@@ -322,7 +324,7 @@ for(implant_name in implant_names) {
     
     
     set.seed(2243534)
-    disprog[[i_sample]] <- transmod$sim_disease(max_t = starting_age, max_age = (starting_age + time_horizon))
+    disprog[[i_sample]] <- transmod$sim_disease(max_t = time_horizon, max_age = (starting_age + time_horizon))
     
     # Update the data using results of this initial simulation
     # Use the time to transition from state 1 to state 2
@@ -346,7 +348,7 @@ for(implant_name in implant_names) {
                                        start_age = patients$age,
                                        start_state = 1)
     set.seed(2243534)
-    disprog[[i_sample]] <- transmod$sim_disease(max_t = starting_age, max_age = (starting_age + time_horizon))
+    disprog[[i_sample]] <- transmod$sim_disease(max_t = time_horizon, max_age = (starting_age + time_horizon))
     # Set the sample number
     disprog[[i_sample]]$sample <- i_sample
     disprog[[i_sample]]$strategy_id <- which(implant_names == implant_name)
@@ -376,6 +378,7 @@ for(implant_name in implant_names) {
   setattr(disprog_combined_implant[[implant_name]], "absorbing", attributes_absorbing)
   
 } # End loop over implants
+}) # End system time
 
 # Create disprog_combined
 disprog_combined <-rbindlist(disprog_combined_implant)
@@ -696,10 +699,37 @@ econmod$sim_costs(dr = discount_rate)
 ## Analyse results
 ############################################################
 
+reference_implant <- "Cem CR_Fix Mod"
 
 ce_sim <- econmod$summarize()
 summary(ce_sim, labels = labs) %>%
   format()
+
+# Calculate total costs, QALYs, and net benefit manually in format for BCEA
+total_costs  <- total_qalys <- matrix(nrow = n_samples, ncol = n_strategies)
+colnames(total_costs) <- colnames(total_qalys) <- implant_names
+for(implant_name in implant_names) {
+  total_costs[, implant_name] <-  as.matrix(ce_sim$costs[ce_sim$costs$category == "total" & 
+                                                 ce_sim$costs$strategy_id == which(implant_names == implant_name), "costs"])
+  total_qalys[, implant_name] <-  as.matrix(ce_sim$qalys[ce_sim$qalys$strategy_id == which(implant_names == implant_name), "qalys"])
+}
+
+knips_bcea <- bcea(e = total_qalys, 
+                  c = total_costs, ref = which(implant_names == reference_implant), 
+                  interventions = implant_names) 
+
+summary(knips_bcea, wtp = 20000)
+
+#plot the cost-effectiveness plane
+ceplane.plot(knips_bcea, wtp = 20000, xlim = c(-10, 10), ylim = c(-5000, 5000))
+
+#plot a CEAC
+knips_multi_ce <- multi.ce(knips_bcea)
+ceac.plot(knips_multi_ce, graph = "ggplot",
+          line = list(colors = c(1:n_strategies)),
+          pos = c(0, 0.50))
+
+
 
 # And calculate ICER
 cea_pw_out <- cea_pw(ce_sim, comparator = 1, dr_qalys = discount_rate, dr_costs = discount_rate,
