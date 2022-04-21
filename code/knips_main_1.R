@@ -17,11 +17,11 @@ library(BCEA)
 # Load requisite functions
 source("code/knips_utils_1.R")
 source("code/generate_model_inputs_1.R")
-source("code/generate_cost_utility_models_1.R")
+source("code/generate_cost_utility_models_2.R")
 source("code/generate_model_outputs_2.R")
 
 # Global option to use dummy data (NJR analyses are confidential)
-use_dummy_data <- TRUE
+use_dummy_data <- FALSE
 
 # Data Directory - needs to be separate for confidentiality reasons
 # Set to wherever the data are stored on your computer
@@ -36,8 +36,8 @@ lifetables <- read_excel(paste0(data_directory, "/KNIPS Main input data.xlsx"), 
 ## Model specification #####################################
 ############################################################
 
-n_samples <- 10
-n_patients <- 10
+n_samples <- 100
+n_patients <- 1000
 
 discount_rate <- 0.035
 
@@ -127,6 +127,7 @@ model_inputs <- generate_model_inputs(n_samples,
                                       use_dummy_data = use_dummy_data)
 
 # 100 samples, 100 patients took 291 seconds
+# 100 samples, 100 patients took 165 seconds
 system.time({
   model_outputs <- generate_model_outputs(hesim_dat = hesim_dat, 
                                           model_inputs = model_inputs)
@@ -171,8 +172,9 @@ results_table <- summarise_results(total_costs = total_costs,
 
 View(results_table)
 
-# Plots a CEAC but only include interventions with a probability > 5% of being most cost-effective
 
+# Plots a CEAC but only include interventions with a probability > 5% of being most cost-effective
+# And which have >5% probability
 lambdas <- c(1:50) * 1000
 net_benefit <- array(NA, dim = c(n_samples, n_implants, length(lambdas)))
 ceac <- matrix(NA, nrow = n_implants, ncol = length(lambdas))
@@ -184,7 +186,7 @@ for(i_lambda in 1:50) {
     ceac[i_implant, i_lambda] <- mean(which_max_net_benefit == i_implant)
   }
 }
-# And which have >5% probability
+
 optimal_implants <- which(rowSums(ceac > 0.05) > 0)
 knips_bcea_optimal <- bcea(e = total_qalys[, optimal_implants], 
                    c = total_costs[, optimal_implants], 

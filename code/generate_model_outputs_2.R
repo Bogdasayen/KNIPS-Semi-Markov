@@ -62,6 +62,7 @@ generate_model_outputs <- function(hesim_dat, model_inputs) {
   # List of disease progression and state occupancies, one for each implant
   disprog <- list()
   stateprobs <- list()
+  yrs_to_1st_rev_implant <- list()
   
   for(implant_name in implant_names) {
     print(paste0("Implant ", which(implant_names == implant_name), "/", length(implant_names)))
@@ -224,6 +225,7 @@ generate_model_outputs <- function(hesim_dat, model_inputs) {
     stateprobs[[implant_name]] <- transition_model$sim_stateprobs(t = 0:(time_horizon),
                                                                   disprog = disprog[[implant_name]])
     
+    yrs_to_1st_rev_implant[[implant_name]] <- as.data.frame(yrs_to_1st_rev_simulated)
     # Check that state probs make sense
     # with(stateprobs[[implant_name]], prob[strategy_id == which(implant_names == implant_name) & sample == 1 & t==20]) / n_patients
     
@@ -232,6 +234,7 @@ generate_model_outputs <- function(hesim_dat, model_inputs) {
   # Create disease progression combined for this implant
   disprog_combined <- rbindlist(disprog)
   stateprobs_combined <- rbindlist(stateprobs)
+  yrs_to_1st_rev_combined <- rbindlist(yrs_to_1st_rev_implant)
   
   # Correctly set the size attributes
   # Check if using attributes(disprog_combined)
@@ -258,7 +261,7 @@ generate_model_outputs <- function(hesim_dat, model_inputs) {
   cost_utility_models <- generate_cost_utility_models(n_samples = n_samples,
                                                       hesim_dat = hesim_dat,
                                                       model_inputs = model_inputs,
-                                                      disprog_combined = disprog_combined)
+                                                      yrs_to_1st_rev_combined = yrs_to_1st_rev_combined)
   
   # Economic model combining everything
   economic_model <- IndivCtstm$new(trans_model = transition_model,
