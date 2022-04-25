@@ -130,6 +130,7 @@ model_inputs <- generate_model_inputs(n_samples,
 # v1: 100 samples, 100 patients took 291 seconds
 # v2: 100 samples, 100 patients took 165 seconds
 # v3: 100 samples, 100 patients took 103 seconds
+# 100 samples, 1000 patients took 1013 seconds
 system.time({
   model_outputs <- generate_model_outputs(hesim_dat = hesim_dat, 
                                           model_inputs = model_inputs)
