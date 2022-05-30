@@ -37,7 +37,7 @@ lifetables <- read_excel(paste0(data_directory, "/KNIPS Main input data.xlsx"), 
 ## Model specification #####################################
 ############################################################
 
-n_samples <- 100
+n_samples <- 1000
 n_patients <- 1000
 
 discount_rate <- 0.035
@@ -135,6 +135,8 @@ system.time({
   model_outputs <- generate_model_outputs(hesim_dat = hesim_dat, 
                                           model_inputs = model_inputs)
 })
+
+save(model_inputs, model_outputs, file = paste0("results/model_run_", sample_gender, "_", age_range[1], "-",age_range[2],"_s",n_samples, "_p", n_patients))
 
 ############################################################
 ## Analyse results #########################################

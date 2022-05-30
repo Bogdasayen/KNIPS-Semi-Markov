@@ -17,8 +17,9 @@ generate_model_inputs <- function(n_samples, age_range, sample_gender, use_dummy
   # Transition 1
   # From Post TKR to Post 1st revision
   
-  if(use_dummy_data) first_revision_filename <- paste0("first_revision_test.xlsx")
-  else {
+  if(use_dummy_data) {
+    first_revision_filename <- paste0("first_revision_test.xlsx")
+  }  else {
     if(age_range[1] != 0 & !is.infinite(age_range[2])) {
       first_revision_filename <- paste0("/", age_range[1], "-", age_range[2], "_", sample_gender, "_first_revision.xlsx")  
     } 
