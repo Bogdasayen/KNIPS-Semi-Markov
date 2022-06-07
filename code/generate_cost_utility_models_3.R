@@ -1,4 +1,4 @@
-
+ 
 generate_cost_utility_models <- function(n_samples, 
                                          hesim_dat,
                                          model_inputs) {
