@@ -37,8 +37,8 @@ lifetables <- read_excel(paste0(data_directory, "/KNIPS Main input data.xlsx"), 
 ## Model specification #####################################
 ############################################################
 
-n_samples <- 1000
-n_patients <- 1000
+n_samples <- 10
+n_patients <- 10
 
 discount_rate <- 0.035
 
@@ -136,7 +136,7 @@ system.time({
                                           model_inputs = model_inputs)
 })
 
-save(model_inputs, model_outputs, file = paste0("results/model_run_", sample_gender, "_", age_range[1], "-",age_range[2],"_s",n_samples, "_p", n_patients))
+save(model_inputs, model_outputs, file = paste0("results/model runs/model_run_", sample_gender, "_", age_range[1], "-",age_range[2],"_s",n_samples, "_p", n_patients,".rda"))
 
 ############################################################
 ## Analyse results #########################################
@@ -176,6 +176,8 @@ results_table <- summarise_results(total_costs = total_costs,
 
 View(results_table)
 
+write.csv(results_table, file = paste0("results/tables/results_table_"
+                                       , sample_gender, "_", age_range[1], "-",age_range[2],"_s",n_samples, "_p", n_patients,".csv"))
 
 # Plots a CEAC but only include interventions with a probability > 5% of being most cost-effective
 # And which have >5% probability
@@ -199,7 +201,11 @@ knips_bcea_optimal <- bcea(e = total_qalys[, optimal_implants],
 
 # Plot the CEAC
 knips_multi_ce <- multi.ce(knips_bcea_optimal)
+
+
+jpeg(filename = paste0("results/ceacs/ceac_",
+                       sample_gender, "_", age_range[1], "-",age_range[2],"_s",n_samples, "_p", n_patients,".jpeg"))
 ceac.plot(knips_multi_ce, graph = "ggplot",
           line = list(colors = c(1:length(optimal_implants))),
-          pos = c(0, 0.50))
-
+          pos = c(0, 1.00))
+dev.off()
